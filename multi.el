@@ -110,7 +110,7 @@
   (get multimethod :multi-dispatch))
 
 (gv-define-setter multi-dispatch (dispatch-function multimethod)
-  (setf (get :multi-dispatch multimethod) dispatch-function))
+  (setf (get multimethod :multi-dispatch) dispatch-function))
 
 (defun multi-methods (multimethod)
   "Return the methods for MULTIMETHOD."
