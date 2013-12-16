@@ -58,4 +58,32 @@
     (multi-defmethod show :default () :foo)
     (should (eq :foo (show)))))
 
+(defmacro multi-test-measure-time (&rest body)
+  "Measure and return the running time of the code block."
+  (declare (indent defun))
+  (let ((start (make-symbol "start")))
+    `(let ((,start (float-time)))
+       ,@body
+       (- (float-time) ,start))))
+
+(defun multi-test-benchmark ()
+  "Return the time of a benchmark of multimethod dispatching."
+  (multi-test-measure-time
+    (multi-save-symbols
+        (meal-result :sweet :fruit :apple :gala :orange :candy :cake)
+      (multi-defmulti meal-result #'vector)
+      (multi-defmethod meal-result [:sweet :sweet] (a b) :fat)
+      (multi-defmethod meal-result [:fruit :fruit] (a b) :skinny)
+      (multi-defmethod meal-result [:fruit :sweet] (a b) :average)
+      (multi-defmethod meal-result [:sweet :fruit] (a b) :average)
+      (multi-derive :apple :fruit)
+      (multi-derive :orange :fruit)
+      (multi-derive :gala :apple)
+      (multi-derive :cake :sweet)
+      (multi-derive :candy :sweet)
+      (loop repeat 10000
+            do (meal-result :cake :candy)
+            do (meal-result :gala :orange)
+            do (meal-result :apple :fruit)))))
+
 ;;; multi-tests.el ends here
