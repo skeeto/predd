@@ -6,21 +6,25 @@
 
 ;; emacs -batch -Q -L .. -L . -l multi-tests.el -f ert-run-tests-batch
 
-(defmacro multi-save-plists (symbols &rest body)
-  "Run BODY, restoring plists for SYMBOLS afterwards."
+(defmacro multi--symbol-function (symbol)
+  "Like `symbol-function' but return nil if unbound."
+  `(if (fboundp ,symbol) (symbol-function ,symbol) nil))
+
+(gv-define-setter multi--symbol-function (store symbol)
+  `(if ,store (fmakunbound ,symbol) (fset ,symbol ,store)))
+
+(defmacro multi-save-symbols (symbols &rest body)
+  "Run BODY, preserving SYMBOLS plists, value bindings, and function bindings."
   (declare (indent 1))
-  `(let ((multi--plists (mapcar #'symbol-plist ',symbols)))
-     (unwind-protect
-         (progn
-           (dolist (symbol ',symbols)
-             (setf (symbol-plist symbol) nil))
-           ,@body)
-       (cl-loop for symbol in ',symbols
-                for plist in multi--plists
-                do (setf (symbol-plist symbol) plist)))))
+  `(cl-letf ,(cl-loop for symbol in symbols
+                      unless (keywordp symbol)
+                      collect `(,symbol nil)
+                      collect `((multi--symbol-function ',symbol) nil)
+                      collect `((symbol-plist ',symbol) ()))
+     ,@body))
 
 (ert-deftest multi-inheritance ()
-  (multi-save-plists (:fruit :apple :gala :carrot)
+  (multi-save-symbols (:fruit :apple :gala :carrot)
     (multi-derive :apple :fruit)
     (multi-derive :gala :apple)
     (should (equal '(:fruit) (multi-parents :apple)))
@@ -36,21 +40,22 @@
     (should (= 1 (multi-equal '[:carrot [t :apple]] '[:carrot [t :fruit]])))))
 
 (ert-deftest multi-no-preferred ()
-  (multi-save-plists (:cat :orange :tabby multi-test--action)
-    (multi-defmulti multi-test--action #'vector)
-    (multi-defmethod multi-test--action [:dog :cat] (a b) :chase)
-    (multi-defmethod multi-test--action [:dog :orange] (a b) :bark)
-    (multi-defmethod multi-test--action :default (a b) :unknown)
-    (should (eq :chase (multi-test--action :dog :cat)))
-    (should (eq :bark (multi-test--action :dog :orange)))
+  (multi-save-symbols (:cat :orange :tabby show)
+    (multi-defmulti show #'vector)
+    (multi-defmethod show [:dog :cat] (a b) :chase)
+    (multi-defmethod show [:dog :orange] (a b) :bark)
+    (multi-defmethod show :default (a b) :unknown)
+    (should (eq :chase (show :dog :cat)))
+    (should (eq :bark (show :dog :orange)))
     (multi-derive :tabby :cat)
     (multi-derive :tabby :orange)
-    (should-error (multi-test--action :dog :tabby))))
+    (should-error (show :dog :tabby))))
 
 (ert-deftest multi-default ()
-  (multi-defmulti multi-test--action #'vector)
-  (should-error (multi-test--action))
-  (multi-defmethod multi-test--action :default () :foo)
-  (should (eq :foo (multi-test--action))))
+  (multi-save-symbols (show)
+    (multi-defmulti show #'vector)
+    (should-error (show))
+    (multi-defmethod show :default () :foo)
+    (should (eq :foo (show)))))
 
 ;;; multi-tests.el ends here
