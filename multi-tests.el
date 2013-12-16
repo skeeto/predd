@@ -6,21 +6,21 @@
 
 ;; emacs -batch -Q -L .. -L . -l multi-tests.el -f ert-run-tests-batch
 
-(defmacro multi--save-plists (symbols &rest body)
+(defmacro multi-save-plists (symbols &rest body)
   "Run BODY, restoring plists for SYMBOLS afterwards."
   (declare (indent 1))
-  `(let ((multi--plists (mapcar #'symbol-plist ',symbols))
-         (result (progn
-                   (dolist (symbol ',symbols)
-                     (setf (symbol-plist symbol) nil))
-                   ,@body)))
-     (prog1 result
+  `(let ((multi--plists (mapcar #'symbol-plist ',symbols)))
+     (unwind-protect
+         (progn
+           (dolist (symbol ',symbols)
+             (setf (symbol-plist symbol) nil))
+           ,@body)
        (cl-loop for symbol in ',symbols
                 for plist in multi--plists
                 do (setf (symbol-plist symbol) plist)))))
 
 (ert-deftest multi-inheritance ()
-  (multi--save-plists (:fruit :apple :gala :carrot)
+  (multi-save-plists (:fruit :apple :gala :carrot)
     (multi-derive :apple :fruit)
     (multi-derive :gala :apple)
     (should (equal '(:fruit) (multi-parents :apple)))
