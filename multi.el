@@ -76,31 +76,44 @@
     (cl-remove-duplicates
      (apply #'append parents (mapcar #'multi-ancestors parents)))))
 
-(defun multi-isa-p (child parent)
-  "Return non-nil if CHILD is a descendant of PARENT."
-  (or (eq child parent)
-      (let ((parents (multi-parents child)))
-        (or (memq child parents)
-            (cl-some (lambda (s) (multi-isa-p s parent)) parents)))))
+(cl-defun multi-isa-p (child parent &optional (base-distance 0))
+  "Return non-nil if CHILD is a descendant of PARENT.
+The return value is an integer distance metric."
+  (if (eq child parent)
+      base-distance
+    (let ((parents (multi-parents child))
+          (next-distance (1+ base-distance)))
+      (if (memq child parents)
+          next-distance
+        (cl-some (lambda (s) (multi-isa-p s parent next-distance)) parents)))))
 
-(defun multi--every (p a b)
+(defun multi--list-every (p a b)
   "Like `cl-every' but handle improper lists and mismatched lengths."
-  (or (and (null a) (null b))
+  (or (and (and (null a) (null b)) 0)
       (if (not (listp a))
           (funcall p a b)
         (unless (or (null a) (null b))
-          (and (funcall p (car a) (car b))
-               (multi--every p (cdr a) (cdr b)))))))
+          (let ((result (funcall p (car a) (car b))))
+            (and result
+                 (+ result (multi--list-every p (cdr a) (cdr b)))))))))
+
+(defun multi--seq-every (p a b)
+  "Like `cl-every' but sum the results."
+  (unless (not (= (length a) (length b)))
+    (cl-loop for a-element across a
+             for b-element across b
+             when (funcall p a-element b-element) sum it
+             else return nil)))
 
 (defun multi-equal (a b)
-  "Compare A and B like `equal' but accounting for inheritance."
+  "Compare A and B like `equal' but accounting for inheritance.
+Returns nil for no match, otherwise an integer distance metric."
   (when (eq (type-of a) (type-of b))
     (cl-typecase a
       (symbol (multi-isa-p a b))
-      (string (string= a b))
-      (list (multi--every #'multi-equal a b))
-      (sequence (and (= (length a) (length b))
-                     (cl-every #'multi-equal a b)))
+      (string (or (string= a b) 0))
+      (list (multi--list-every #'multi-equal a b))
+      (sequence (multi--seq-every #'multi-equal a b))
       (t (equal a b)))))
 
 ;; Multimethods
