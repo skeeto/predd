@@ -70,6 +70,9 @@
   "Return a list of parents of SYMBOL."
   (get symbol :multi-parents))
 
+(gv-define-setter multi-parents (parents symbol)
+  `(setf (get ,symbol :multi-parents) ,parents))
+
 (defun multi-ancestors (symbol)
   "Return a list of ancestors of SYMBOL."
   (let ((parents (multi-parents symbol)))
@@ -123,7 +126,7 @@ Returns nil for no match, otherwise an integer distance metric."
   (get multimethod :multi-dispatch))
 
 (gv-define-setter multi-dispatch (dispatch-function multimethod)
-  (setf (get multimethod :multi-dispatch) dispatch-function))
+  `(setf (get ,multimethod :multi-dispatch) ,dispatch-function))
 
 (defun multi-methods (multimethod)
   "Return the methods for MULTIMETHOD."
