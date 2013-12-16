@@ -133,19 +133,30 @@ Returns nil for no match, otherwise an integer distance metric."
   (get multimethod :multi-methods))
 
 (defun multi-lookup (multimethod value)
-  "Return the method to use for VALUE in MULTIMETHOD."
-  (let ((methods (multi-methods multimethod)))
-    (or (cdr (cl-assoc value methods :test #'multi-equal))
-        (get multimethod :multi-default))))
+  "Return an alist of equally-preferred methods for VALUE in MULTIMETHOD."
+  (cl-loop with methods = (multi-methods multimethod)
+           with default = (get multimethod :multi-default)
+           with best = nil
+           with best-methods = (if default (cl-acons nil default ()) ())
+           for (dispatch-value . method) in methods
+           for score = (multi-equal value dispatch-value)
+           when (and score (or (null best) (> score best)))
+           do (setf best score
+                    best-methods (cl-acons dispatch-value method ()))
+           else when (and score (= best score))
+           do (push (cons dispatch-value method) best-methods)
+           finally (return best-methods)))
 
 (defun multi--funcall (multimethod args)
   "Run the method for MULTIMETHOD with ARGS."
   (let* ((dispatch (multi-dispatch multimethod))
          (value (apply dispatch args))
-         (method (multi-lookup multimethod value)))
-    (if method
-        (apply method args)
-      (error "No method found in %S for %S" multimethod value))))
+         (methods (multi-lookup multimethod value)))
+    (cl-case (length methods)
+      (0 (error "No method found in %S for %S" multimethod value))
+      (1 (apply (cdr (car methods)) args))
+      (otherwise (error "no preferred dispatch in %S: %S -> %S"
+                        multimethod value (mapcar #'car methods))))))
 
 (defmacro multi-defmulti (name dispatch-fn &optional docstring)
   "Define a new multimethod as NAME dispatching on DISPATCH-FN."

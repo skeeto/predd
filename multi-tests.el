@@ -35,4 +35,22 @@
     (should (= 3 (multi-equal '(:gala . :apple) '(:fruit . :fruit))))
     (should (= 1 (multi-equal '[:carrot [t :apple]] '[:carrot [t :fruit]])))))
 
+(ert-deftest multi-no-preferred ()
+  (multi-save-plists (:cat :orange :tabby multi-test--action)
+    (multi-defmulti multi-test--action #'vector)
+    (multi-defmethod multi-test--action [:dog :cat] (a b) :chase)
+    (multi-defmethod multi-test--action [:dog :orange] (a b) :bark)
+    (multi-defmethod multi-test--action :default (a b) :unknown)
+    (should (eq :chase (multi-test--action :dog :cat)))
+    (should (eq :bark (multi-test--action :dog :orange)))
+    (multi-derive :tabby :cat)
+    (multi-derive :tabby :orange)
+    (should-error (multi-test--action :dog :tabby))))
+
+(ert-deftest multi-default ()
+  (multi-defmulti multi-test--action #'vector)
+  (should-error (multi-test--action))
+  (multi-defmethod multi-test--action :default () :foo)
+  (should (eq :foo (multi-test--action))))
+
 ;;; multi-tests.el ends here
