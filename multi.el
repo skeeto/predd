@@ -180,7 +180,7 @@ Returns nil for no match, otherwise an integer distance metric."
      (setf (get ',name :multi-dispatch) ,dispatch-fn
            (get ',name :multi-methods) ()
            (get ',name :multi-default) nil)
-     (defun ,name (&rest args)
+     (cl-defun ,name (&rest args)
        ,docstring
        (multi--funcall ',name args))))
 
@@ -195,7 +195,8 @@ Returns nil for no match, otherwise an integer distance metric."
 (defmacro multi-defmethod (name dispatch-value args &rest body)
   "Define a new method in multimethod NAME for DISPATCH-VALUE."
   (declare (indent 3))
-  `(multi-add-method ',name ,dispatch-value (lambda ,args ,@body)))
+  `(multi-add-method ',name ,dispatch-value
+                     (cl-function (lambda ,args ,@body))))
 
 (let ((macros (regexp-opt '("multi-defmulti" "multi-defmethod") t)))
   (font-lock-add-keywords
