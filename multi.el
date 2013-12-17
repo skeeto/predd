@@ -70,7 +70,7 @@
 
 (defun multi-derive (symbol parent)
   "Derive a parent-child relationship from PARENT to SYMBOL."
-  (incf multi--cache-counter)
+  (cl-incf multi--cache-counter)
   (cl-pushnew parent (get symbol :multi-parents)))
 
 (defun multi-parents (symbol)
@@ -79,7 +79,7 @@
 
 (gv-define-setter multi-parents (parents symbol)
   `(progn
-     (incf multi--cache-counter)
+     (cl-incf multi--cache-counter)
      (setf (get ,symbol :multi-parents) ,parents)))
 
 (defun multi-ancestors (symbol)
@@ -176,7 +176,7 @@ Returns nil for no match, otherwise an integer distance metric."
   "Define a new multimethod as NAME dispatching on DISPATCH-FN."
   (declare (indent 2))
   `(progn
-     (incf multi--cache-counter)
+     (cl-incf multi--cache-counter)
      (setf (get ',name :multi-dispatch) ,dispatch-fn
            (get ',name :multi-methods) ()
            (get ',name :multi-default) nil)
@@ -187,7 +187,7 @@ Returns nil for no match, otherwise an integer distance metric."
 (defun multi-add-method (multimethod value function)
   "Declare FUNCTION as a method in MULTIMETHOD for VALUE."
   (prog1 (list multimethod value)
-    (incf multi--cache-counter)
+    (cl-incf multi--cache-counter)
     (if (eq value :default)
         (setf (get multimethod :multi-default) function)
       (push (cons value function) (get multimethod :multi-methods)))))
