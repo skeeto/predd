@@ -94,17 +94,15 @@
 (cl-defun multi-isa-p (child parent &optional (base-distance 0) stack)
   "Return non-nil if CHILD is a descendant of PARENT.
 The return value is an integer distance metric."
-  (if (memq child stack)
-      nil
-    (if (eq child parent)
-        base-distance
-      (let ((parents (multi-parents child))
-            (next-distance (1+ base-distance)))
-        (if (memq child parents)
-            next-distance
-          (cl-some (lambda (s)
-                     (multi-isa-p s parent next-distance (cons child stack)))
-                   parents))))))
+  (cond ((eq child parent)  base-distance)
+        ((memq child stack) nil)
+        ((let ((parents (multi-parents child))
+               (next-distance (1+ base-distance)))
+           (if (memq child parents)
+               next-distance
+             (cl-some (lambda (s)
+                        (multi-isa-p s parent next-distance (cons child stack)))
+                      parents))))))
 
 (defun multi--list-every (p a b)
   "Like `cl-every' but handle improper lists and mismatched lengths."
