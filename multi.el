@@ -181,7 +181,8 @@ Returns nil for no match, otherwise an integer distance metric."
            (get ',name :multi-methods) ()
            (get ',name :multi-default) nil)
      (defun ,name (&rest args)
-       ,docstring
+       ,(format "%s\n\nThis function is a multimethod."
+                (or docstring "Not documented."))
        (multi--funcall ',name args))))
 
 (defun multi-add-method (multimethod value function)
