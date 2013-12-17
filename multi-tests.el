@@ -11,20 +11,18 @@
 (gv-define-setter multi--symbol-function (store symbol)
   `(if ,store (fmakunbound ,symbol) (fset ,symbol ,store)))
 
-(defmacro multi-save-symbols (symbols &rest body)
-  "Run BODY, preserving SYMBOLS plists, value bindings, and function bindings."
+(defmacro multi-test-harness (funcs &rest body)
+  "Run BODY with a temporary hierarchy, preserving FUNCS function bindings."
   (declare (indent 1))
-  `(cl-letf ,(cl-loop for symbol in symbols
-                      unless (keywordp symbol)
-                      collect `(,symbol nil)
-                      collect `((multi--symbol-function ',symbol) nil)
-                      collect `((symbol-plist ',symbol) ()))
-     ,@(cl-loop for symbol in symbols
-                collect `(declare-function ,symbol nil))
-     ,@body))
+  `(let ((multi-hierarchy (multi-make-hierarchy)))
+     (cl-letf ,(cl-loop for func in funcs
+                        collect `((multi--symbol-function ',func) nil))
+       ,@(cl-loop for func in funcs
+                  collect `(declare-function ,func nil))
+       ,@body)))
 
 (ert-deftest multi-inheritance ()
-  (multi-save-symbols (:fruit :apple :gala :carrot)
+  (multi-test-harness ()
     (multi-derive :apple :fruit)
     (multi-derive :gala :apple)
     (should (equal '(:fruit) (multi-parents :apple)))
@@ -41,7 +39,7 @@
 
 (ert-deftest multi-min-inheriance ()
   "Equality should find the smallest path."
-  (multi-save-symbols (:a :b :ab :aab)
+  (multi-test-harness ()
     (multi-derive :ab :a)
     (multi-derive :ab :b)
     (multi-derive :aab :a)
@@ -49,7 +47,8 @@
     (should (= 1 (multi-equal :aab :a)))))
 
 (ert-deftest multi-no-preferred ()
-  (multi-save-symbols (:cat :orange :tabby show)
+  "Throw an error when no method is preferred."
+  (multi-test-harness (show)
     (multi-defmulti show #'vector)
     (multi-defmethod show [:dog :cat] (a b) :chase)
     (multi-defmethod show [:dog :orange] (a b) :bark)
@@ -61,7 +60,7 @@
     (should-error (show :dog :tabby))))
 
 (ert-deftest multi-default ()
-  (multi-save-symbols (show)
+  (multi-test-harness (show)
     (multi-defmulti show #'vector)
     (should-error (show))
     (multi-defmethod show :default () :foo)
@@ -78,8 +77,7 @@
 (defun multi-test-benchmark ()
   "Return the time of a benchmark of multimethod dispatching."
   (multi-test-measure-time
-    (multi-save-symbols
-        (meal-result :sweet :fruit :apple :gala :orange :candy :cake)
+    (multi-test-harness (meal-result)
       (multi-defmulti meal-result #'vector)
       (multi-defmethod meal-result [:sweet :sweet] (a b) :fat)
       (multi-defmethod meal-result [:fruit :fruit] (a b) :skinny)

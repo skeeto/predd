@@ -67,21 +67,31 @@
   (make-hash-table :test 'equal :weakness 'value)
   "Table used for faster multimethod dispatching.")
 
-;; Inheritance functions
+;; Hierarchy functions
+
+(cl-defstruct (multi-hierarchy (:constructor multi-make-hierarchy))
+  (parents  (make-hash-table :test 'eq) :read-only t)
+  (defaults (make-hash-table :test 'eq) :read-only t)
+  (dispatch (make-hash-table :test 'eq) :read-only t)
+  (methods  (make-hash-table :test 'eq) :read-only t))
+
+(defvar multi-hierarchy (multi-make-hierarchy)
+  "Global multimethods hierarchy.")
 
 (defun multi-derive (symbol parent)
   "Derive a parent-child relationship from PARENT to SYMBOL."
   (clrhash multi--dispatch-cache)
-  (cl-pushnew parent (get symbol :multi-parents)))
+  (let ((table (multi-hierarchy-parents multi-hierarchy)))
+    (cl-pushnew parent (gethash symbol table))))
 
 (defun multi-parents (symbol)
   "Return a list of parents of SYMBOL."
-  (get symbol :multi-parents))
+  (gethash symbol (multi-hierarchy-parents multi-hierarchy)))
 
 (gv-define-setter multi-parents (parents symbol)
-  `(progn
+  `(let ((table (multi-hierarchy-parents multi-hierarchy)))
      (clrhash multi--dispatch-cache)
-     (setf (get ,symbol :multi-parents) ,parents)))
+     (setf (gethash ,symbol table) ,parents)))
 
 (defun multi-ancestors (symbol)
   "Return a list of ancestors of SYMBOL."
@@ -137,14 +147,29 @@ Returns nil for no match, otherwise an integer distance metric."
 
 (defun multi-dispatch (multimethod)
   "Get the dispatch function for MULTIMETHOD."
-  (get multimethod :multi-dispatch))
+  (gethash multimethod (multi-hierarchy-dispatch multi-hierarchy)))
 
 (gv-define-setter multi-dispatch (dispatch-function multimethod)
-  `(setf (get ,multimethod :multi-dispatch) ,dispatch-function))
+  `(let ((table (multi-hierarchy-dispatch multi-hierarchy)))
+     (setf (gethash ,multimethod table) ,dispatch-function)))
 
 (defun multi-methods (multimethod)
   "Return the methods for MULTIMETHOD."
-  (get multimethod :multi-methods))
+  (gethash multimethod (multi-hierarchy-methods multi-hierarchy)))
+
+(gv-define-setter multi-methods (methods multimethod)
+  `(let ((table (multi-hierarchy-methods multi-hierarchy)))
+     (clrhash multi--dispatch-cache)
+     (setf (gethash ,multimethod table) ,methods)))
+
+(defun multi-default (multimethod)
+  "Get the default method for MULTIMETHOD."
+  (gethash multimethod (multi-hierarchy-defaults multi-hierarchy)))
+
+(gv-define-setter multi-default (method multimethod)
+  `(let ((table (multi-hierarchy-defaults multi-hierarchy)))
+     (clrhash multi--dispatch-cache)
+     (setf (gethash ,multimethod table) ,method)))
 
 (defun multi-lookup (multimethod value)
   "Return an alist of equally-preferred methods for VALUE in MULTIMETHOD."
@@ -153,7 +178,7 @@ Returns nil for no match, otherwise an integer distance metric."
     (if cached
         cached
       (cl-loop with methods = (multi-methods multimethod)
-               with default = (get multimethod :multi-default)
+               with default = (multi-default multimethod)
                with best = nil
                with best-methods = (if default (cl-acons nil default ()) ())
                for (dispatch-value . method) in methods
@@ -182,9 +207,9 @@ Returns nil for no match, otherwise an integer distance metric."
   (declare (indent 2))
   `(progn
      (clrhash multi--dispatch-cache)
-     (setf (get ',name :multi-dispatch) ,dispatch-fn
-           (get ',name :multi-methods) ()
-           (get ',name :multi-default) nil)
+     (setf (multi-dispatch ',name) ,dispatch-fn
+           (multi-methods  ',name) ()
+           (multi-default  ',name) nil)
      (defun ,name (&rest args)
        ,(format "%s\n\nThis function is a multimethod."
                 (or docstring "Not documented."))
@@ -195,8 +220,8 @@ Returns nil for no match, otherwise an integer distance metric."
   (prog1 (list multimethod value)
     (clrhash multi--dispatch-cache)
     (if (eq value :default)
-        (setf (get multimethod :multi-default) function)
-      (push (cons value function) (get multimethod :multi-methods)))))
+        (setf (multi-default multimethod) function)
+      (push (cons value function) (multi-methods multimethod)))))
 
 (defmacro multi-defmethod (name dispatch-value args &rest body)
   "Define a new method in multimethod NAME for DISPATCH-VALUE."
