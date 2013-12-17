@@ -180,7 +180,7 @@ Returns nil for no match, otherwise an integer distance metric."
      (setf (get ',name :multi-dispatch) ,dispatch-fn
            (get ',name :multi-methods) ()
            (get ',name :multi-default) nil)
-     (cl-defun ,name (&rest args)
+     (defun ,name (&rest args)
        ,docstring
        (multi--funcall ',name args))))
 
