@@ -66,14 +66,11 @@
 (defvar multi--cache (make-hash-table :test 'equal :weakness 'value)
   "Table used for faster multimethod dispatching.")
 
-(defvar multi--cache-counter 0
-  "Increments any time inheritance changes, wiping the cache.")
-
 ;; Inheritance functions
 
 (defun multi-derive (symbol parent)
   "Derive a parent-child relationship from PARENT to SYMBOL."
-  (cl-incf multi--cache-counter)
+  (clrhash multi--cache)
   (cl-pushnew parent (get symbol :multi-parents)))
 
 (defun multi-parents (symbol)
@@ -82,7 +79,7 @@
 
 (gv-define-setter multi-parents (parents symbol)
   `(progn
-     (cl-incf multi--cache-counter)
+     (clrhash multi--cache)
      (setf (get ,symbol :multi-parents) ,parents)))
 
 (defun multi-ancestors (symbol)
@@ -148,7 +145,7 @@ Returns nil for no match, otherwise an integer distance metric."
 
 (defun multi-lookup (multimethod value)
   "Return an alist of equally-preferred methods for VALUE in MULTIMETHOD."
-  (let* ((key (list multi--cache-counter multimethod value))
+  (let* ((key (cons multimethod value))
          (cached (gethash key multi--cache)))
     (if cached
         cached
@@ -181,7 +178,7 @@ Returns nil for no match, otherwise an integer distance metric."
   "Define a new multimethod as NAME dispatching on DISPATCH-FN."
   (declare (indent 2))
   `(progn
-     (cl-incf multi--cache-counter)
+     (clrhash multi--cache)
      (setf (get ',name :multi-dispatch) ,dispatch-fn
            (get ',name :multi-methods) ()
            (get ',name :multi-default) nil)
@@ -193,7 +190,7 @@ Returns nil for no match, otherwise an integer distance metric."
 (defun multi-add-method (multimethod value function)
   "Declare FUNCTION as a method in MULTIMETHOD for VALUE."
   (prog1 (list multimethod value)
-    (cl-incf multi--cache-counter)
+    (clrhash multi--cache)
     (if (eq value :default)
         (setf (get multimethod :multi-default) function)
       (push (cons value function) (get multimethod :multi-methods)))))
