@@ -1,8 +1,11 @@
-;;; multi.el --- Clojure-style multimethods
+;;; multi.el --- Clojure-style multimethods -*- lexical-binding: t; -*-
 
 ;; This is free and unencumbered software released into the public domain.
 
 ;; Author: Christopher Wellons <wellons@nullprogram.com>
+;; URL: https://github.com/skeeto/multi
+;; Version: 1.0.0
+;; Package-Requires: ((cl-lib "0.3") (emacs "24.1"))
 
 ;;; Commentary:
 
