@@ -1,4 +1,4 @@
-;;; multi.el --- Clojure-style multimethods, multiple dispatch
+;;; multi.el --- Clojure-style multimethods
 
 ;; This is free and unencumbered software released into the public domain.
 
