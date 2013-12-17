@@ -139,7 +139,7 @@ Returns nil for no match, otherwise an integer distance metric."
   (when (eq (type-of a) (type-of b))
     (cl-typecase a
       (symbol (multi-isa-p a b))
-      (string (or (string= a b) 0))
+      (string (and (string= a b) 0))
       (list (multi--list-every #'multi-equal a b))
       (sequence (multi--seq-every #'multi-equal a b))
       (t (equal a b)))))

@@ -35,7 +35,8 @@
     (should (= 1 (multi-equal :apple :fruit)))
     (should (= 2 (multi-equal '(:gala) '(:fruit))))
     (should (= 3 (multi-equal '(:gala . :apple) '(:fruit . :fruit))))
-    (should (= 1 (multi-equal '[:carrot [t :apple]] '[:carrot [t :fruit]])))))
+    (should (= 1 (multi-equal '[:carrot [t :apple]] '[:carrot [t :fruit]])))
+    (should (= 0 (multi-equal "Foo" "Foo")))))
 
 (ert-deftest multi-min-inheriance ()
   "Equality should find the smallest path."
