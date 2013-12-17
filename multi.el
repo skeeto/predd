@@ -63,24 +63,25 @@
 
 (require 'cl-lib)
 
-(defvar multi--dispatch-cache
-  (make-hash-table :test 'equal :weakness 'value)
-  "Table used for faster multimethod dispatching.")
-
 ;; Hierarchy functions
 
 (cl-defstruct (multi-hierarchy (:constructor multi-make-hierarchy))
   (parents  (make-hash-table :test 'eq) :read-only t)
   (defaults (make-hash-table :test 'eq) :read-only t)
   (dispatch (make-hash-table :test 'eq) :read-only t)
-  (methods  (make-hash-table :test 'eq) :read-only t))
+  (methods  (make-hash-table :test 'eq) :read-only t)
+  (-cache   (make-hash-table :test 'equal :weakness 'value)))
 
 (defvar multi-hierarchy (multi-make-hierarchy)
   "Global multimethods hierarchy.")
 
+(defun multi--clear-dispatch-cache ()
+  "Reset the dispatch cache in the global hierarchy."
+  (clrhash (multi-hierarchy--cache multi-hierarchy)))
+
 (defun multi-derive (symbol parent)
   "Derive a parent-child relationship from PARENT to SYMBOL."
-  (clrhash multi--dispatch-cache)
+  (multi--clear-dispatch-cache)
   (let ((table (multi-hierarchy-parents multi-hierarchy)))
     (cl-pushnew parent (gethash symbol table))))
 
@@ -90,7 +91,7 @@
 
 (gv-define-setter multi-parents (parents symbol)
   `(let ((table (multi-hierarchy-parents multi-hierarchy)))
-     (clrhash multi--dispatch-cache)
+     (multi--clear-dispatch-cache)
      (setf (gethash ,symbol table) ,parents)))
 
 (defun multi-ancestors (symbol)
@@ -159,7 +160,7 @@ Returns nil for no match, otherwise an integer distance metric."
 
 (gv-define-setter multi-methods (methods multimethod)
   `(let ((table (multi-hierarchy-methods multi-hierarchy)))
-     (clrhash multi--dispatch-cache)
+     (multi--clear-dispatch-cache)
      (setf (gethash ,multimethod table) ,methods)))
 
 (defun multi-default (multimethod)
@@ -168,13 +169,14 @@ Returns nil for no match, otherwise an integer distance metric."
 
 (gv-define-setter multi-default (method multimethod)
   `(let ((table (multi-hierarchy-defaults multi-hierarchy)))
-     (clrhash multi--dispatch-cache)
+     (multi--clear-dispatch-cache)
      (setf (gethash ,multimethod table) ,method)))
 
 (defun multi-lookup (multimethod value)
   "Return an alist of equally-preferred methods for VALUE in MULTIMETHOD."
   (let* ((key (cons multimethod value))
-         (cached (gethash key multi--dispatch-cache)))
+         (cache (multi-hierarchy--cache multi-hierarchy))
+         (cached (gethash key cache)))
     (if cached
         cached
       (cl-loop with methods = (multi-methods multimethod)
@@ -188,8 +190,7 @@ Returns nil for no match, otherwise an integer distance metric."
                         best-methods (cl-acons dispatch-value method ()))
                else when (and score (= best score))
                do (push (cons dispatch-value method) best-methods)
-               finally (return (setf (gethash key multi--dispatch-cache)
-                                     best-methods))))))
+               finally (return (setf (gethash key cache) best-methods))))))
 
 (defun multi--funcall (multimethod args)
   "Run the method for MULTIMETHOD with ARGS."
@@ -206,7 +207,7 @@ Returns nil for no match, otherwise an integer distance metric."
   "Define a new multimethod as NAME dispatching on DISPATCH-FN."
   (declare (indent 2))
   `(progn
-     (clrhash multi--dispatch-cache)
+     (multi--clear-dispatch-cache)
      (setf (multi-dispatch ',name) ,dispatch-fn
            (multi-methods  ',name) ()
            (multi-default  ',name) nil)
@@ -218,7 +219,7 @@ Returns nil for no match, otherwise an integer distance metric."
 (defun multi-add-method (multimethod value function)
   "Declare FUNCTION as a method in MULTIMETHOD for VALUE."
   (prog1 (list multimethod value)
-    (clrhash multi--dispatch-cache)
+    (multi--clear-dispatch-cache)
     (if (eq value :default)
         (setf (multi-default multimethod) function)
       (push (cons value function) (multi-methods multimethod)))))
