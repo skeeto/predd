@@ -1,4 +1,4 @@
-;;; multi.el --- multimethods for Emacs Lisp
+;;; multi.el --- Clojure-style multimethods, multiple dispatch
 
 ;; This is free and unencumbered software released into the public domain.
 
