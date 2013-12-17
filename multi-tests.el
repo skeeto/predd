@@ -39,6 +39,15 @@
     (should (= 3 (multi-equal '(:gala . :apple) '(:fruit . :fruit))))
     (should (= 1 (multi-equal '[:carrot [t :apple]] '[:carrot [t :fruit]])))))
 
+(ert-deftest multi-min-inheriance ()
+  "Equality should find the smallest path."
+  (multi-save-symbols (:a :b :ab :aab)
+    (multi-derive :ab :a)
+    (multi-derive :ab :b)
+    (multi-derive :aab :a)
+    (multi-derive :aab :ab)
+    (should (= 1 (multi-equal :aab :a)))))
+
 (ert-deftest multi-no-preferred ()
   (multi-save-symbols (:cat :orange :tabby show)
     (multi-defmulti show #'vector)

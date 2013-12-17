@@ -97,9 +97,11 @@ The return value is an integer distance metric."
                (next-distance (1+ base-distance)))
            (if (memq child parents)
                next-distance
-             (cl-some (lambda (s)
-                        (multi-isa-p s parent next-distance (cons child stack)))
-                      parents))))))
+             (cl-loop with next-stack = (cons child stack)
+                      for next in parents
+                      for distance =
+                      (multi-isa-p next parent next-distance next-stack)
+                      when distance minimize it))))))
 
 (defun multi--list-every (p a b)
   "Like `cl-every' but handle improper lists and mismatched lengths."
