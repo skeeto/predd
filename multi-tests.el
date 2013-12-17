@@ -4,8 +4,6 @@
 (require 'cl-lib)
 (require 'multi)
 
-;; emacs -batch -Q -L .. -L . -l multi-tests.el -f ert-run-tests-batch
-
 (defmacro multi--symbol-function (symbol)
   "Like `symbol-function' but return nil if unbound."
   `(if (fboundp ,symbol) (symbol-function ,symbol) nil))
@@ -83,9 +81,14 @@
       (multi-derive :gala :apple)
       (multi-derive :cake :sweet)
       (multi-derive :candy :sweet)
-      (cl-loop repeat 10000
+      (cl-loop repeat 50000
             do (meal-result :cake :candy)
             do (meal-result :gala :orange)
             do (meal-result :apple :fruit)))))
+
+(defun multi-test-benchmark-print ()
+  "Print the benchmark results."
+  (interactive)
+  (princ (format "Benchmark: %f seconds\n" (multi-test-benchmark))))
 
 ;;; multi-tests.el ends here
