@@ -21,6 +21,8 @@
                       collect `(,symbol nil)
                       collect `((multi--symbol-function ',symbol) nil)
                       collect `((symbol-plist ',symbol) ()))
+     ,@(cl-loop for symbol in symbols
+                collect `(declare-function ,symbol nil))
      ,@body))
 
 (ert-deftest multi-inheritance ()
@@ -81,7 +83,7 @@
       (multi-derive :gala :apple)
       (multi-derive :cake :sweet)
       (multi-derive :candy :sweet)
-      (loop repeat 10000
+      (cl-loop repeat 10000
             do (meal-result :cake :candy)
             do (meal-result :gala :orange)
             do (meal-result :apple :fruit)))))
