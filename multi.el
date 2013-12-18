@@ -224,7 +224,10 @@ The return value is a distance metric from A to B."
     (multi--clear-dispatch-cache)
     (if (eq value :default)
         (setf (multi-default multimethod) function)
-      (push (cons value function) (multi-methods multimethod)))))
+      (let ((previous (cl-assoc value (multi-methods multimethod) :test #'equal)))
+        (if previous
+            (setf (cdr previous) function)
+          (push (cons value function) (multi-methods multimethod)))))))
 
 (defmacro multi-defmethod (name dispatch-value args &rest body)
   "Define a new method in multimethod NAME for DISPATCH-VALUE."
