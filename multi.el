@@ -187,7 +187,7 @@ The return value is a distance metric from A to B."
                with best-methods = (if default (cl-acons nil default ()) ())
                for (dispatch-value . method) in methods
                for score = (multi-isa-p value dispatch-value)
-               when (and score (or (null best) (> score best)))
+               when (and score (or (null best) (< score best)))
                do (setf best score
                         best-methods (cl-acons dispatch-value method ()))
                else when (and score (= best score))
