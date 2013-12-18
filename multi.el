@@ -224,7 +224,8 @@ The return value is a distance metric from A to B."
     (multi--clear-dispatch-cache)
     (if (eq value :default)
         (setf (multi-default multimethod) function)
-      (let ((previous (cl-assoc value (multi-methods multimethod) :test #'equal)))
+      (let ((previous (cl-assoc value (multi-methods multimethod)
+                                :test #'equal)))
         (if previous
             (setf (cdr previous) function)
           (push (cons value function) (multi-methods multimethod)))))))
