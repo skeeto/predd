@@ -121,9 +121,11 @@ Otherwise return nil."
       (if (not (listp a))
           (funcall p a b)
         (unless (or (null a) (null b))
-          (let ((result (funcall p (car a) (car b))))
-            (and result
-                 (+ result (multi--list-every p (cdr a) (cdr b)))))))))
+          (let* ((result (funcall p (car a) (car b)))
+                 (next-result (when result
+                                (multi--list-every p (cdr a) (cdr b)))))
+            (if (and result next-result)
+                (+ result next-result)))))))
 
 (defun multi--seq-every (p a b)
   "Like `cl-every' but sum the results."
