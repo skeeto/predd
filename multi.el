@@ -66,11 +66,11 @@
 ;; Hierarchy functions
 
 (cl-defstruct (multi-hierarchy (:constructor multi-make-hierarchy))
-  (parents  (make-hash-table :test 'eq) :read-only t)
-  (defaults (make-hash-table :test 'eq) :read-only t)
-  (dispatch (make-hash-table :test 'eq) :read-only t)
-  (methods  (make-hash-table :test 'eq) :read-only t)
-  (-cache   (make-hash-table :test 'equal :weakness 'value)))
+  (parents     (make-hash-table :test 'eq) :read-only t)
+  (defaults    (make-hash-table :test 'eq) :read-only t)
+  (classifiers (make-hash-table :test 'eq) :read-only t)
+  (methods     (make-hash-table :test 'eq) :read-only t)
+  (-cache      (make-hash-table :test 'equal :weakness 'value)))
 
 (defvar multi-hierarchy (multi-make-hierarchy)
   "Global multimethods hierarchy.")
@@ -100,9 +100,9 @@
     (cl-remove-duplicates
      (apply #'append parents (mapcar #'multi-ancestors parents)))))
 
-(cl-defun multi-isa-p (child parent &optional (base-distance 0) stack)
-  "Return non-nil if CHILD is a descendant of PARENT.
-The return value is an integer distance metric."
+(cl-defun multi-distance (child parent &optional (base-distance 0) stack)
+  "Return distance if CHILD is derived, directly or indirectly, from PARENT.
+Otherwise return nil."
   (cond ((eq child parent)  base-distance)
         ((memq child stack) nil)
         ((let ((parents (multi-parents child))
@@ -112,7 +112,7 @@ The return value is an integer distance metric."
              (cl-loop with next-stack = (cons child stack)
                       for next in parents
                       for distance =
-                      (multi-isa-p next parent next-distance next-stack)
+                      (multi-distance next parent next-distance next-stack)
                       when distance minimize it))))))
 
 (defun multi--list-every (p a b)
@@ -133,26 +133,26 @@ The return value is an integer distance metric."
              when (funcall p a-element b-element) sum it
              else return nil)))
 
-(defun multi-equal (a b)
-  "Compare A and B like `equal' but accounting for inheritance.
-Returns nil for no match, otherwise an integer distance metric."
+(defun multi-isa-p (a b)
+  "Return non-nil if value A is dervied, directly or indirectly, from value B.
+The return value is a distance metric from A to B."
   (when (eq (type-of a) (type-of b))
     (cl-typecase a
-      (symbol (multi-isa-p a b))
+      (symbol (multi-distance a b))
       (string (and (string= a b) 0))
-      (list (multi--list-every #'multi-equal a b))
-      (sequence (multi--seq-every #'multi-equal a b))
+      (list (multi--list-every #'multi-isa-p a b))
+      (sequence (multi--seq-every #'multi-isa-p a b))
       (t (equal a b)))))
 
 ;; Multimethods
 
-(defun multi-dispatch (multimethod)
-  "Get the dispatch function for MULTIMETHOD."
-  (gethash multimethod (multi-hierarchy-dispatch multi-hierarchy)))
+(defun multi-classifier (multimethod)
+  "Get the classifier function for MULTIMETHOD."
+  (gethash multimethod (multi-hierarchy-classifiers multi-hierarchy)))
 
-(gv-define-setter multi-dispatch (dispatch-function multimethod)
-  `(let ((table (multi-hierarchy-dispatch multi-hierarchy)))
-     (setf (gethash ,multimethod table) ,dispatch-function)))
+(gv-define-setter multi-classifier (classifier-function multimethod)
+  `(let ((table (multi-hierarchy-classifiers multi-hierarchy)))
+     (setf (gethash ,multimethod table) ,classifier-function)))
 
 (defun multi-methods (multimethod)
   "Return the methods for MULTIMETHOD."
@@ -184,7 +184,7 @@ Returns nil for no match, otherwise an integer distance metric."
                with best = nil
                with best-methods = (if default (cl-acons nil default ()) ())
                for (dispatch-value . method) in methods
-               for score = (multi-equal value dispatch-value)
+               for score = (multi-isa-p value dispatch-value)
                when (and score (or (null best) (> score best)))
                do (setf best score
                         best-methods (cl-acons dispatch-value method ()))
@@ -194,8 +194,8 @@ Returns nil for no match, otherwise an integer distance metric."
 
 (defun multi--funcall (multimethod args)
   "Run the method for MULTIMETHOD with ARGS."
-  (let* ((dispatch (multi-dispatch multimethod))
-         (value (apply dispatch args))
+  (let* ((classifier (multi-classifier multimethod))
+         (value (apply classifier args))
          (methods (multi-lookup multimethod value)))
     (cl-case (length methods)
       (0 (error "No method found in %S for %S" multimethod value))
@@ -203,14 +203,14 @@ Returns nil for no match, otherwise an integer distance metric."
       (otherwise (error "no preferred dispatch in %S: %S -> %S"
                         multimethod value (mapcar #'car methods))))))
 
-(defmacro multi-defmulti (name dispatch-fn &optional docstring)
-  "Define a new multimethod as NAME dispatching on DISPATCH-FN."
+(defmacro multi-defmulti (name classifier-function &optional docstring)
+  "Define a new multimethod as NAME dispatching on CLASSIFIER-FUNCTION."
   (declare (indent 2))
   `(progn
      (multi--clear-dispatch-cache)
-     (setf (multi-dispatch ',name) ,dispatch-fn
-           (multi-methods  ',name) ()
-           (multi-default  ',name) nil)
+     (setf (multi-classifier ',name) ,classifier-function
+           (multi-methods    ',name) ()
+           (multi-default    ',name) nil)
      (defun ,name (&rest args)
        ,(format "%s\n\nThis function is a multimethod."
                 (or docstring "Not documented."))
