@@ -2,6 +2,8 @@
 
 This library provides [Clojure-style multimethods](http://clojure.org/multimethods) for Emacs Lisp, supporting multiple dispatch over an ad hoc type hierarchy.
 
+See also: [Clojure-style Multimethods in Emacs Lisp](http://nullprogram.com/blog/2013/12/18/).
+
 ## Example Usage
 
 ```el
