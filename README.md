@@ -9,16 +9,16 @@ See also: [Clojure-style Multimethods in Emacs Lisp](http://nullprogram.com/blog
 ```el
 ;; `vector' is the dispatch function for the multimethod `show'
 
-(multi-defmulti show #'vector
+(predd-defmulti show #'vector
   "Return how an animal should respond when shown another animal.")
 
-(multi-defmethod show [:cat :mouse] (a b)
+(predd-defmethod show [:cat :mouse] (a b)
   :chase)
 
-(multi-defmethod show [:cat :dog] (a b)
+(predd-defmethod show [:cat :dog] (a b)
   :run)
 
-(multi-defmethod show [:dog :cat] (a b)
+(predd-defmethod show [:dog :cat] (a b)
   :bark)
 
 ;; Call the multimethod on some different types
@@ -28,7 +28,7 @@ See also: [Clojure-style Multimethods in Emacs Lisp](http://nullprogram.com/blog
 
 ;; Declare that a tabby is a specific type of cat.
 
-(multi-derive :tabby :cat)
+(predd-derive :tabby :cat)
 
 (show :dog :tabby)  ; => :bark
 ```
