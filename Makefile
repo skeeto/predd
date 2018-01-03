@@ -1,23 +1,24 @@
-EMACS   ?= emacs
-BATCH   := $(EMACS) -batch -Q -L .
-COMPILE := $(BATCH) -f batch-byte-compile
-TEST    := $(BATCH) -L tests -l predd-tests.elc -f ert-run-tests-batch
+.POSIX:
+.SUFFIXES: .el .elc
+EMACS = emacs
 
-EL = predd.el predd-tests.el
+src = predd.el predd-tests.el
+obj = $(src:.el=.elc)
 
-ELC = $(EL:.el=.elc)
+all: test
 
-.PHONY : all compile test clean
+compile: $(obj)
 
-all : test
-
-compile: $(ELC)
-
-test: compile
-	$(TEST) -f predd-test-benchmark-print
+test: $(obj)
+	$(EMACS) -Q -batch -L . -l predd-tests.elc \
+		 -f ert-run-tests-batch \
+		 -f predd-test-benchmark-print
 
 clean:
-	$(RM) *.elc
+	rm -rf $(obj)
 
-%.elc: %.el
-	@$(COMPILE) $<
+predd.elc: predd.el
+predd-tests.elc: predd-tests.el predd.elc
+
+.el.elc:
+	$(EMACS) -Q -batch -L . -f batch-byte-compile $<
